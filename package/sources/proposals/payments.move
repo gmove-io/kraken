@@ -1,4 +1,4 @@
-/// This module uses the owned apis to stream a coin for a payment.
+/// This module uses the access apis to stream a coin for a payment.
 /// A payment has an amount to be paid at each interval, until the balance is empty.
 /// It can be cancelled by the multisig member.
 
@@ -9,7 +9,7 @@ module kraken::payments {
     use sui::balance::Balance;
     use sui::coin::{Self, Coin};
     
-    use kraken::owned::{Self, Withdraw};
+    use kraken::access::{Self, Withdraw};
     use kraken::multisig::{Multisig, Action};
 
     // === Errors ===
@@ -61,7 +61,7 @@ module kraken::payments {
         recipient: address,
         ctx: &mut TxContext
     ) {
-        let withdraw = owned::new_withdraw(vector[coin]);
+        let withdraw = access::new_withdraw(vector[coin]);
         let action = Pay { withdraw, amount, interval, recipient };
         multisig.create_proposal(
             action,

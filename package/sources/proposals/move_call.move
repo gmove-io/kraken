@@ -7,7 +7,7 @@
 module kraken::move_call {
     use std::string::String;
     use kraken::multisig::{Multisig, Action};
-    use kraken::owned::{Self, Withdraw, Borrow};
+    use kraken::access::{Self, Withdraw, Borrow};
 
     // === Error ===
 
@@ -19,9 +19,9 @@ module kraken::move_call {
     public struct MoveCall has store {
         // digest of the tx we want to execute
         digest: vector<u8>,
-        // sub action requesting to access owned objects (such as a Coin)
+        // sub action requesting to access access objects (such as a Coin)
         withdraw: Withdraw,
-        // sub action requesting to borrow owned objects (such as a Cap)
+        // sub action requesting to borrow access objects (such as a Cap)
         borrow: Borrow,
     }
 
@@ -39,8 +39,8 @@ module kraken::move_call {
         to_withdraw: vector<ID>,
         ctx: &mut TxContext
     ) {
-        let withdraw = owned::new_withdraw(to_withdraw);
-        let borrow = owned::new_borrow(to_borrow);
+        let withdraw = access::new_withdraw(to_withdraw);
+        let borrow = access::new_borrow(to_borrow);
         let action = MoveCall { digest, withdraw, borrow };
 
         multisig.create_proposal(
@@ -64,7 +64,7 @@ module kraken::move_call {
         (withdraw, borrow)
     }    
 
-    // step 5: borrow or withdraw the objects from owned (get a Cap to call another function)
-    // step 6: destroy Withdraw in owned
+    // step 5: borrow or withdraw the objects from access (get a Cap to call another function)
+    // step 6: destroy Withdraw in access
 }
 

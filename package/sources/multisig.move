@@ -47,6 +47,11 @@ module kraken::multisig {
         approved: VecSet<address>,
     }
 
+    public struct Promise {
+        multisig_addr: address,
+        proposal_uid: UID,
+    }
+
     // hot potato ensuring the action is executed as it can't be stored
     public struct Action<T: store> {
         inner: T,
@@ -54,6 +59,8 @@ module kraken::multisig {
 
     // key for the inner action struct of a proposal
     public struct ActionKey has copy, drop, store {}
+    // key for the inner object struct of a proposal
+    public struct AccessKey has copy, drop, store {}
 
     // === Public mutative functions ===
 
@@ -97,15 +104,14 @@ module kraken::multisig {
 
     // create a new proposal for an action
     // that must be constructed in another module
-    public fun create_proposal<T: store>(
+    public fun create_proposal(
         multisig: &mut Multisig, 
-        action: T,
         key: String, 
         execution_time: u64, // timestamp in ms
         expiration_epoch: u64,
         description: String,
         ctx: &mut TxContext
-    ) {
+    ): &mut Proposal {
         assert_is_member(multisig, ctx);
 
         let mut proposal = Proposal { 
@@ -116,9 +122,23 @@ module kraken::multisig {
             approved: vec_set::empty(), 
         };
 
-        df::add(&mut proposal.id, ActionKey {}, action);
-
         multisig.proposals.insert(key, proposal);
+
+        multisig.proposals.get_mut(&key)
+    }
+
+    public fun add_action<A: store>(
+        proposal: &mut Proposal,
+        action: A
+    ) {
+        df::add(&mut proposal.id, ActionKey {}, action);
+    }
+
+    public fun add_access<A: store>(
+        proposal: &mut Proposal,
+        access: A
+    ) {
+        df::add(&mut proposal.id, AccessKey {}, access);
     }
 
     // remove a proposal that hasn't been approved yet
@@ -168,12 +188,12 @@ module kraken::multisig {
     }
 
     // return the action if the number of signers is >= threshold
-    public fun execute_proposal<T: store>(
+    public fun execute_proposal(
         multisig: &mut Multisig, 
         key: String, 
         clock: &Clock,
         ctx: &mut TxContext
-    ): Action<T> {
+    ): Promise {
         assert_is_member(multisig, ctx);
 
         let (_, proposal) = multisig.proposals.remove(&key);
@@ -187,13 +207,30 @@ module kraken::multisig {
         assert!(approved.size() >= multisig.threshold, EThresholdNotReached);
         assert!(clock.timestamp_ms() >= execution_time, ECantBeExecutedYet);
 
-        let inner = df::remove(&mut id, ActionKey {});
-        id.delete();
+        Promise { multisig_addr: multisig.addr(), proposal_uid: id }
+    }
 
+    public fun get_action<A: store>(promise: &mut Promise): Action<A> {
+        let inner = df::remove(&mut promise.proposal_uid, ActionKey {});
         Action { inner }
     }
 
+    public fun get_access<A: store>(promise: &mut Promise): A {
+        df::remove(&mut promise.proposal_uid, AccessKey {})
+    }
+
+    public fun complete_proposal(promise: Promise) {
+        let Promise { multisig_addr: _, proposal_uid } = promise;
+        assert!(!df::exists_(&mut proposal_uid, ActionKey {}), 0);
+        assert!(!df::exists_(&mut proposal_uid, AccessKey {}), 0);
+        proposal_uid.delete();
+    }
+
     // === View functions ===
+
+    public fun get_multisig_addr(promise: &Promise): address {
+        promise.multisig_addr
+    }
 
     public fun name(multisig: &Multisig): String {
         multisig.name

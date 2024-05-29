@@ -9,7 +9,7 @@ module kraken::kiosk {
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::transfer_policy::{TransferPolicy, TransferRequest};
     use kraken::multisig::{Multisig, Action};
-    use kraken::owned::{Self, Borrow};
+    use kraken::access::{Self, Borrow};
 
     // === Errors ===
 
@@ -73,7 +73,7 @@ module kraken::kiosk {
 
         // access the multisig's KioskOwnerCap and use it to move the nft into its kiosk
         let ms_cap_id = multisig_cap.receiving_object_id();
-        let mut borrow = owned::new_borrow(vector[ms_cap_id]);
+        let mut borrow = access::new_borrow(vector[ms_cap_id]);
         let cap = borrow.borrow(multisig, multisig_cap);
         multisig_kiosk.place(&cap, nft);
         borrow.put_back(multisig, cap);
@@ -101,7 +101,7 @@ module kraken::kiosk {
         ctx: &mut TxContext
     ) {
         let action = Transfer { 
-            borrow: owned::new_borrow(vector[cap_id]), 
+            borrow: access::new_borrow(vector[cap_id]), 
             nfts, 
             recipient 
         };
@@ -185,7 +185,7 @@ module kraken::kiosk {
     ) {
         assert!(nfts.length() == prices.length(), EWrongNftsPrices);
         let action = List { 
-            borrow: owned::new_borrow(vector[cap_id]), 
+            borrow: access::new_borrow(vector[cap_id]), 
             nfts, 
             prices 
         };
@@ -246,7 +246,7 @@ module kraken::kiosk {
         multisig.assert_is_member(ctx);
         // access the multisig's KioskOwnerCap and use it to delist the nft
         let ms_cap_id = cap.receiving_object_id();
-        let mut borrow = owned::new_borrow(vector[ms_cap_id]);
+        let mut borrow = access::new_borrow(vector[ms_cap_id]);
         let cap = borrow.borrow(multisig, cap);
         kiosk.delist<T>(&cap, nft);
         borrow.put_back(multisig, cap);

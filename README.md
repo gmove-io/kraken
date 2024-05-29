@@ -15,8 +15,8 @@ This project will eventually include both an SDK and a CLI to streamline operati
 ## Features
 
 - **Configuration**: Set up the Multisig's name, members, threshold, proposal expiration and scheduled execution. Send on-chain invites to newly added members.
-- **Access Control**: Securely manage access to functions in your package via a Cap owned by the Multisig.
-- **Asset Management**: Manage and send your coins or any other object types just like with classic accounts. Transfer and de/list NFTs from/to the Multisig's Kiosk. Easily hide spam objects owned by a Multisig.
+- **Access Control**: Securely manage access to functions in your package via a Cap access by the Multisig.
+- **Asset Management**: Manage and send your coins or any other object types just like with classic accounts. Transfer and de/list NFTs from/to the Multisig's Kiosk. Easily hide spam objects access by a Multisig.
 - **Pay People**: Create a payment stream to send an amount of coin to an address at regular frequency.
 - **Custom Proposals**: Define any actions in your module and easily manage them via the Multisig. Check out the [examples](TODO:).
 - **Package Upgrades**: Lock your UpgradeCaps in your Multisig to enforce agreement on the code to be published. Optionally follow a time-lock built-in policy to protect your users. Helpers will be provided to display upcoming upgrades on your dapp
@@ -32,15 +32,15 @@ The project consists of several modules, each handling different aspects of the 
 
 3. **Config**: Enables the modification of multisig settings such as member addition or removal, threshold changes and name update.
 
-4. **Owned**: Manages access to objects owned by the multisig, allowing them to be withdrawn or borrowed through proposals.
+4. **Owned**: Manages access to objects access by the multisig, allowing them to be withdrawn or borrowed through proposals.
 
 5. **Coin Operations**: Handles the merging and splitting of coins in the multisig. Can be used to prepare a Proposal with coins with the exact amount needed.
 
-6. **Transfers**: Allows the transfer of assets owned in the multisig treasury. Objects can also be delivered, meaning the recipient has to claim the objects otherwise the Multisig can retrieve them.
+6. **Transfers**: Allows the transfer of assets access in the multisig treasury. Objects can also be delivered, meaning the recipient has to claim the objects otherwise the Multisig can retrieve them.
 
 7. **Payments**: Handles the creation of a payment stream for a coin. The payment is done by sending an amount of the coin to the recipient at a regular interval until the balance is empty. It can be cancelled by the multisig member.
 
-8. **Kiosk**: Handles the creation of a Kiosk, which is a container for NFTs owned by the Multisig. The Kiosk module can be used to move NFTs between the Multisig and other Kiosks. NFTs can listed and delisted from the Kiosk and profits can be withdrawn.
+8. **Kiosk**: Handles the creation of a Kiosk, which is a container for NFTs access by the Multisig. The Kiosk module can be used to move NFTs between the Multisig and other Kiosks. NFTs can listed and delisted from the Kiosk and profits can be withdrawn.
 
 9. **Move Call**: Facilitates the enforcement of calling the appropriate functions. The action can also include to borrow or withdraw objects (such as a Cap).
 

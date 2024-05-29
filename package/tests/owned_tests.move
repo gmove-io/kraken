@@ -3,7 +3,7 @@ module kraken::owned_tests{
     use sui::test_utils::{assert_eq, destroy};
     use sui::test_scenario::{receiving_ticket_by_id, take_from_address_by_id};
 
-    use kraken::owned;
+    use kraken::access;
     use kraken::test_utils::start_world;
 
     const OWNER: address = @0xBABE;
@@ -27,7 +27,7 @@ module kraken::owned_tests{
 
         world.scenario().next_tx(OWNER);
 
-        let mut withdraw = owned::new_withdraw(vector[id1, id2]);
+        let mut withdraw = access::new_withdraw(vector[id1, id2]);
 
         let object2 = withdraw.withdraw<Object>(world.multisig(), receiving_ticket_by_id(id2));
         let object1 = withdraw.withdraw<Object>(world.multisig(), receiving_ticket_by_id(id1));
@@ -59,7 +59,7 @@ module kraken::owned_tests{
 
         world.scenario().next_tx(OWNER);
 
-        let mut borrow = owned::new_borrow(vector[id1, id2]);
+        let mut borrow = access::new_borrow(vector[id1, id2]);
         
         // Objects must be taken LIFO
         let object2 = borrow.borrow<Object>(world.multisig(), receiving_ticket_by_id(id2));
@@ -87,7 +87,7 @@ module kraken::owned_tests{
     }
 
     #[test]
-    #[expected_failure(abort_code = owned::EWrongObject)]
+    #[expected_failure(abort_code = access::EWrongObject)]
     fun test_withdraw_error_wrong_object() {
         let mut world = start_world();
 
@@ -103,7 +103,7 @@ module kraken::owned_tests{
 
         world.scenario().next_tx(OWNER);
 
-        let mut borrow = owned::new_borrow(vector[id1]);
+        let mut borrow = access::new_borrow(vector[id1]);
         
         // Objects must be taken LIFO
         let object2 = borrow.borrow<Object>(world.multisig(), receiving_ticket_by_id(id2));
@@ -115,7 +115,7 @@ module kraken::owned_tests{
     }
 
     #[test]
-    #[expected_failure(abort_code = owned::EWrongObject)]
+    #[expected_failure(abort_code = access::EWrongObject)]
     fun test_put_back_error_wrong_object() {
         let mut world = start_world();
 
@@ -130,7 +130,7 @@ module kraken::owned_tests{
 
         world.scenario().next_tx(OWNER);
 
-        let mut borrow = owned::new_borrow(vector[id1]);
+        let mut borrow = access::new_borrow(vector[id1]);
         
         // Objects must be taken LIFO
         let object1 = borrow.borrow<Object>(world.multisig(), receiving_ticket_by_id(id1));
@@ -146,7 +146,7 @@ module kraken::owned_tests{
     }
 
     #[test]
-    #[expected_failure(abort_code = owned::ERetrieveAllObjectsBefore)]
+    #[expected_failure(abort_code = access::ERetrieveAllObjectsBefore)]
     fun test_complete_borrow_error_retrieve_all_objects_before() {
         let mut world = start_world();
 
@@ -161,14 +161,14 @@ module kraken::owned_tests{
 
         world.scenario().next_tx(OWNER);
 
-        let borrow = owned::new_borrow(vector[id1]);
+        let borrow = access::new_borrow(vector[id1]);
 
         borrow.complete_borrow();
         world.end();
     }
 
     #[test]
-    #[expected_failure(abort_code = owned::EReturnAllObjectsBefore)]
+    #[expected_failure(abort_code = access::EReturnAllObjectsBefore)]
     fun test_complete_borrow_error_return_all_objects_before() {
         let mut world = start_world();
 
@@ -182,7 +182,7 @@ module kraken::owned_tests{
 
         world.scenario().next_tx(OWNER);
 
-        let mut borrow = owned::new_borrow(vector[id1]);
+        let mut borrow = access::new_borrow(vector[id1]);
 
         let object1 = borrow.borrow<Object>(world.multisig(), receiving_ticket_by_id(id1));
 
