@@ -22,6 +22,8 @@ module kraken::owned {
     public struct Withdraw has store {
         // the owned objects we want to access
         objects: vector<ID>,
+        // the proposal owning the action
+        proposal_id: ID,
     }
 
     // action to be stored in a Proposal
@@ -31,12 +33,14 @@ module kraken::owned {
         withdraw: Withdraw,
         // list of objects to put back into the multisig
         to_return: vector<ID>,
+        // the proposal owning the action
+        proposal_id: ID,
     }
 
     // === Public functions ===
 
-    public fun new_withdraw(objects: vector<ID>): Withdraw {
-        Withdraw { objects }
+    public fun new_withdraw(objects: vector<ID>, proposal_uid: &UID): Withdraw {
+        Withdraw { objects, proposal_id: proposal_uid.uid_to_inner() }
     }
 
     // [AUTH] issued from Action to prevent unauthorized withdrawals
@@ -46,7 +50,7 @@ module kraken::owned {
         receiving: Receiving<T>,
         auth: Auth
     ): T {
-        multisig.authentify(auth);
+        multisig.authentify(action.proposal_id, auth);
         let id = action.objects.pop_back();
         let received = transfer::public_receive(multisig.uid_mut(), receiving);
         let received_id = object::id(&received);
@@ -56,15 +60,16 @@ module kraken::owned {
     }
 
     public fun complete_withdraw(action: Withdraw) {
-        let Withdraw { objects } = action;
+        let Withdraw { objects, proposal_id: _ } = action;
         assert!(objects.is_empty(), ERetrieveAllObjectsBefore);
         objects.destroy_empty();
     }
 
-    public fun new_borrow(objects: vector<ID>): Borrow {
+    public fun new_borrow(objects: vector<ID>, proposal_uid: &UID): Borrow {
         Borrow {
-            withdraw: new_withdraw(objects),
+            withdraw: new_withdraw(objects, proposal_uid),
             to_return: objects,
+            proposal_id: proposal_uid.uid_to_inner(),
         }
     }
 
@@ -90,7 +95,7 @@ module kraken::owned {
     }
 
     public fun complete_borrow(action: Borrow) {
-        let Borrow { withdraw, to_return } = action;
+        let Borrow { withdraw, to_return, proposal_id: _ } = action;
         complete_withdraw(withdraw);
         assert!(to_return.is_empty(), EReturnAllObjectsBefore);
         to_return.destroy_empty();

@@ -51,8 +51,10 @@ module kraken::multisig {
     // hot potato ensuring the action is executed as it can't be stored
     public struct Action<T: store> {
         inner: T,
+        // approved proposal that wrapped the action
+        proposal_id: ID,
         // multisig that approved the action
-        multisig: ID,
+        multisig_id: ID,
     }
 
     // key for the inner action struct of a proposal
@@ -61,8 +63,10 @@ module kraken::multisig {
     // an auth token that can be constructed only from an Action
     // used to verify that the action has been approved by this multisig
     public struct Auth has drop {
+        // id of the proposal that has been approved
+        proposal_id: ID,
         // id of the multisig issuing the auth
-        multisig: ID,
+        multisig_id: ID,
     }
 
     // === Public mutative functions ===
@@ -198,14 +202,15 @@ module kraken::multisig {
         assert!(clock.timestamp_ms() >= execution_time, ECantBeExecutedYet);
 
         let inner = df::remove(&mut id, ActionKey {});
+        let proposal_id = id.uid_to_inner();
         id.delete();
 
-        Action { inner, multisig: multisig.id.uid_to_inner() }
+        Action { inner, proposal_id, multisig_id: multisig.id.uid_to_inner() }
     }
 
     // creates a Witness from an Action
     public fun issue_auth<A: store>(action: &Action<A>): Auth {
-        Auth { multisig: action.multisig }
+        Auth { multisig_id: action.multisig_id, proposal_id: action.proposal_id }
     }
 
     // called to access and execute the action
@@ -215,7 +220,7 @@ module kraken::multisig {
 
     // should be called after the action has been executed 
     public fun unpack_action<T: store>(action: Action<T>): T {
-        let Action { inner, multisig: _ } = action;
+        let Action { inner, multisig_id: _, proposal_id: _ } = action;
         inner
     }
 
@@ -269,8 +274,12 @@ module kraken::multisig {
         assert!(multisig.members.contains(&ctx.sender()), ECallerIsNotMember);
     }
 
-    public fun authentify(multisig: &Multisig, auth: Auth) {
-        assert!(multisig.id.uid_to_inner() == auth.multisig, EAuthNotValid);
+    public fun authentify(multisig: &Multisig, proposal_id: ID, auth: Auth) {
+        assert!(
+            multisig.id.uid_to_inner() == auth.multisig_id
+            && proposal_id == auth.proposal_id, 
+            EAuthNotValid
+        );
     }
 
     // === Package functions ===
