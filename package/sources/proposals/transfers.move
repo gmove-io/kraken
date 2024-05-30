@@ -5,9 +5,9 @@
 module kraken::transfers {
     use std::string::String;
 
-    use sui::transfer::Receiving;
     use sui::bag::{Self, Bag};
-    
+    use sui::transfer::Receiving;
+
     use kraken::owned::{Self, Withdraw};
     use kraken::multisig::{Multisig, Action};
 

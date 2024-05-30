@@ -54,7 +54,7 @@ module kraken::upgrade_policies {
         time_lock: u64,
         upgrade_cap: UpgradeCap,
         ctx: &mut TxContext
-    ) {
+    ): ID {
         multisig.assert_is_member(ctx);
         let lock = UpgradeLock { 
             id: object::new(ctx), 
@@ -62,7 +62,11 @@ module kraken::upgrade_policies {
             time_lock, 
             upgrade_cap 
         };
+
+        let id = object::id(&lock);
         transfer::transfer(lock, multisig.addr());
+
+        id
     }
 
     // step 1: propose an Upgrade by passing the digest of the package build
@@ -100,7 +104,7 @@ module kraken::upgrade_policies {
         upgrade_lock: Receiving<UpgradeLock>,
         clock: &Clock,
         ctx: &mut TxContext
-    ): UpgradeTicket {
+    ): (UpgradeTicket, UpgradeLock) {
         let action = multisig.execute_proposal(key, clock, ctx);
         let Upgrade { digest, upgrade_lock: lock_id } = action.unpack_action();
         let mut received = transfer::receive(multisig.uid_mut(), upgrade_lock);
@@ -113,19 +117,17 @@ module kraken::upgrade_policies {
             digest
         );
 
-        transfer::transfer(received, multisig.addr());
-        ticket
+        (ticket, received)
     }    
 
     // step 4: consume the receipt to complete the upgrade
     public fun complete_upgrade(
         multisig: &mut Multisig,
-        upgrade_lock: Receiving<UpgradeLock>,
+        mut upgrade_lock: UpgradeLock,
         receipt: UpgradeReceipt,
     ) {
-        let mut received = transfer::receive(multisig.uid_mut(), upgrade_lock);
-        package::commit_upgrade(&mut received.upgrade_cap, receipt);
-        transfer::transfer(received, multisig.addr());
+        package::commit_upgrade(&mut upgrade_lock.upgrade_cap, receipt);
+        transfer::transfer(upgrade_lock, multisig.addr());
     }
 
     // step 1: propose an Upgrade by passing the digest of the package build
@@ -189,6 +191,11 @@ module kraken::upgrade_policies {
             package::make_immutable(upgrade_cap);
             id.delete();
         };
+    }
+
+    #[test_only]
+    public fun upgrade_cap(lock: &UpgradeLock): &UpgradeCap {
+        &lock.upgrade_cap
     }
 }
 
