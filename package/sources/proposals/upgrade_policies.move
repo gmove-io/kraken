@@ -8,7 +8,7 @@ module kraken::upgrade_policies {
     use sui::package::{Self, UpgradeCap, UpgradeTicket, UpgradeReceipt};
     use sui::transfer::Receiving;
     use sui::clock::Clock;
-    use kraken::multisig::{Multisig, Action};
+    use kraken::multisig::Multisig;
 
     // === Error ===
 
@@ -27,7 +27,7 @@ module kraken::upgrade_policies {
     }
 
     // action to be held in a Proposal
-    public struct Policy has store {
+    public struct Restrict has store {
         // restrict upgrade to this policy
         policy: u8,
         // UpgradeLock to receive to access the UpgradeCap
@@ -92,14 +92,16 @@ module kraken::upgrade_policies {
     }
 
     // step 2: multiple members have to approve the proposal (multisig::approve_proposal)
-    // step 3: execute the proposal and return the action (multisig::execute_proposal)
 
-    // step 4: destroy Upgrade and return the UpgradeTicket for upgrading
+    // step 3: destroy Upgrade and return the UpgradeTicket for upgrading
     public fun execute_upgrade(
-        action: Action<Upgrade>,
         multisig: &mut Multisig,
+        key: String,
         upgrade_lock: Receiving<UpgradeLock>,
+        clock: &Clock,
+        ctx: &mut TxContext
     ): UpgradeTicket {
+        let action = multisig.execute_proposal(key, clock, ctx);
         let Upgrade { digest, upgrade_lock: lock_id } = action.unpack_action();
         let mut received = transfer::receive(multisig.uid_mut(), upgrade_lock);
         assert!(received.id.uid_to_inner() == lock_id, EWrongUpgradeLock);
@@ -115,7 +117,7 @@ module kraken::upgrade_policies {
         ticket
     }    
 
-    // step 5: consume the receipt to complete the upgrade
+    // step 4: consume the receipt to complete the upgrade
     public fun complete_upgrade(
         multisig: &mut Multisig,
         upgrade_lock: Receiving<UpgradeLock>,
@@ -128,7 +130,7 @@ module kraken::upgrade_policies {
 
     // step 1: propose an Upgrade by passing the digest of the package build
     // execution_time is automatically set to now + timelock
-    public fun propose_policy(
+    public fun propose_restrict(
         multisig: &mut Multisig, 
         key: String,
         execution_time: u64,
@@ -148,7 +150,7 @@ module kraken::upgrade_policies {
             EInvalidPolicy
         );
 
-        let action = Policy { policy, upgrade_lock: received.id.uid_to_inner() };
+        let action = Restrict { policy, upgrade_lock: received.id.uid_to_inner() };
 
         multisig.create_proposal(
             action,
@@ -162,15 +164,17 @@ module kraken::upgrade_policies {
     }
 
     // step 2: multiple members have to approve the proposal (multisig::approve_proposal)
-    // step 3: execute the proposal and return the action (multisig::execute_proposal)
 
-    // step 4: destroy Upgrade and return the UpgradeTicket for upgrading
-    public fun execute_policy(
-        action: Action<Policy>,
+    // step 3: destroy Upgrade and return the UpgradeTicket for upgrading
+    public fun execute_restrict(
         multisig: &mut Multisig,
+        key: String,
         upgrade_lock: Receiving<UpgradeLock>,
+        clock: &Clock,
+        ctx: &mut TxContext
     ) {
-        let Policy { policy, upgrade_lock: lock_id } = action.unpack_action();
+        let action = multisig.execute_proposal(key, clock, ctx);
+        let Restrict { policy, upgrade_lock: lock_id } = action.unpack_action();
         let mut received = transfer::receive(multisig.uid_mut(), upgrade_lock);
         assert!(received.id.uid_to_inner() == lock_id, EWrongUpgradeLock);
 
