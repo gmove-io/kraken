@@ -3,10 +3,11 @@
 /// This action can't be proposed directly since it wouldn't make sense to withdraw an object without using it.
 /// Objects can be borrowed using an action wrapping the Withdraw action.
 /// Caution: borrowed Coins can be emptied, only withdraw the amount you need
+/// withdraw and borrow can only be called using an action executed by the multisig owning the objects
 
 module kraken::owned {    
     use sui::transfer::Receiving;
-    use kraken::multisig::Multisig;
+    use kraken::multisig::{Multisig, Auth};
 
     // === Errors ===
 
@@ -32,17 +33,20 @@ module kraken::owned {
         to_return: vector<ID>,
     }
 
-    // === Package functions ===
+    // === Public functions ===
 
-    public(package) fun new_withdraw(objects: vector<ID>): Withdraw {
+    public fun new_withdraw(objects: vector<ID>): Withdraw {
         Withdraw { objects }
     }
 
-    public(package) fun withdraw<T: key + store>(
+    // [AUTH] issued from Action to prevent unauthorized withdrawals
+    public fun withdraw<T: key + store>(
         action: &mut Withdraw,
         multisig: &mut Multisig, 
-        receiving: Receiving<T>
+        receiving: Receiving<T>,
+        auth: Auth
     ): T {
+        multisig.authentify(auth);
         let id = action.objects.pop_back();
         let received = transfer::public_receive(multisig.uid_mut(), receiving);
         let received_id = object::id(&received);
@@ -51,42 +55,41 @@ module kraken::owned {
         received
     }
 
-    public(package) fun complete_withdraw(action: Withdraw) {
+    public fun complete_withdraw(action: Withdraw) {
         let Withdraw { objects } = action;
         assert!(objects.is_empty(), ERetrieveAllObjectsBefore);
         objects.destroy_empty();
     }
 
-    public(package) fun new_borrow(objects: vector<ID>): Borrow {
+    public fun new_borrow(objects: vector<ID>): Borrow {
         Borrow {
             withdraw: new_withdraw(objects),
             to_return: objects,
         }
     }
 
-    public(package) fun borrow<T: key + store>(
+    // [AUTH] via withdraw to prevent unauthorized borrows
+    public fun borrow<T: key + store>(
         action: &mut Borrow,
         multisig: &mut Multisig, 
-        receiving: Receiving<T>
+        receiving: Receiving<T>,
+        auth: Auth
     ): T {
-        action.withdraw.withdraw(multisig, receiving)
+        action.withdraw.withdraw(multisig, receiving, auth)
     }
     
-    // step 5: return the object to the multisig to empty `to_return` vector
-    public(package) fun put_back<T: key + store>(
+    public fun put_back<T: key + store>(
         action: &mut Borrow,
         multisig: &Multisig, 
         returned: T, 
     ) {
-        let (exists_, index) =
-            action.to_return.index_of(&object::id(&returned));
+        let (exists_, index) = action.to_return.index_of(&object::id(&returned));
         assert!(exists_, EWrongObject);
-        action.to_return.remove(index);
+        action.to_return.swap_remove(index);
         transfer::public_transfer(returned, multisig.addr());
     }
 
-    // step 6: destroy the action once all objects are retrieved/received
-    public(package) fun complete_borrow(action: Borrow) {
+    public fun complete_borrow(action: Borrow) {
         let Borrow { withdraw, to_return } = action;
         complete_withdraw(withdraw);
         assert!(to_return.is_empty(), EReturnAllObjectsBefore);

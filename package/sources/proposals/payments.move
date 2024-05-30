@@ -83,8 +83,9 @@ module kraken::payments {
         received: Receiving<Coin<C>>,
         ctx: &mut TxContext
     ) {
+        let auth = action.issue_auth();
         let Pay { mut withdraw, amount, interval, recipient } = action.unpack_action();
-        let coin = withdraw.withdraw(multisig, received);
+        let coin = withdraw.withdraw(multisig, received, auth);
         withdraw.complete_withdraw();
 
         let stream = Stream<C> { 

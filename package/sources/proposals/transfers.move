@@ -84,7 +84,8 @@ module kraken::transfers {
         multisig: &mut Multisig, 
         received: Receiving<T>
     ) {
-        let object = action.action_mut().withdraw.withdraw(multisig, received);
+        let auth = action.issue_auth();
+        let object = action.action_mut().withdraw.withdraw(multisig, received, auth);
         transfer::public_transfer(object, action.action_mut().recipients.pop_back());
     }
 
@@ -133,7 +134,8 @@ module kraken::transfers {
         multisig: &mut Multisig,
         received: Receiving<T>
     ) {
-        let object = action.action_mut().withdraw.withdraw(multisig, received);
+        let auth = action.issue_auth();
+        let object = action.action_mut().withdraw.withdraw(multisig, received, auth);
         let index = delivery.objects.length();
         delivery.objects.add(index, object);
     }

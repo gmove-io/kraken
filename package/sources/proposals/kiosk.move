@@ -54,38 +54,6 @@ module kraken::kiosk {
         kiosk
     }
 
-    // deposit from another Kiosk, no need for proposal
-    // step 1: move the nft and return the request
-    public fun transfer_from<T: key + store>(
-        multisig: &mut Multisig, 
-        multisig_kiosk: &mut Kiosk, 
-        multisig_cap: Receiving<KioskOwnerCap>,
-        sender_kiosk: &mut Kiosk, 
-        sender_cap: &KioskOwnerCap, 
-        nft_id: ID,
-        ctx: &mut TxContext
-    ): TransferRequest<T> {
-        multisig.assert_is_member(ctx);
-
-        sender_kiosk.list<T>(sender_cap, nft_id, 0);
-        let coin = coin::zero<SUI>(ctx);
-        let (nft, request) = sender_kiosk.purchase<T>(nft_id, coin);
-
-        // access the multisig's KioskOwnerCap and use it to move the nft into its kiosk
-        let ms_cap_id = multisig_cap.receiving_object_id();
-        let mut borrow = owned::new_borrow(vector[ms_cap_id]);
-        let cap = borrow.borrow(multisig, multisig_cap);
-        multisig_kiosk.place(&cap, nft);
-        borrow.put_back(multisig, cap);
-        borrow.complete_borrow();
-
-        request
-    }
-
-    // step 2: resolve the rules for the request
-
-    // step 3: destroy the request (0x2::transfer_policy::confirm_request)
-
     // === Multisig only functions ===
 
     // step 1: propose to transfer nfts to another kiosk
@@ -125,7 +93,8 @@ module kraken::kiosk {
         multisig: &mut Multisig, 
         multisig_cap: Receiving<KioskOwnerCap>,
     ): KioskOwnerCap {
-        action.action_mut().borrow.borrow(multisig, multisig_cap)
+        let auth = action.issue_auth();
+        action.action_mut().borrow.borrow(multisig, multisig_cap, auth)
     }
 
     // step 4: move the nft and return the request for each nft in the action
@@ -148,15 +117,9 @@ module kraken::kiosk {
         request
     }
 
-    // step 5: fill the request for each transfer
+    // step 5: resolve the rules for the request
 
-    // step 6: destroy the request for each transfer
-    public fun complete_request<T: key + store>(
-        policy: &TransferPolicy<T>,
-        request: TransferRequest<T>,
-    ) {
-        policy.confirm_request(request);
-    }
+    // step 6: destroy the request (0x2::transfer_policy::confirm_request)
 
     // step 7: destroy the action and return the cap
     public fun complete_transfer_to(
@@ -208,7 +171,8 @@ module kraken::kiosk {
         multisig: &mut Multisig, 
         multisig_cap: Receiving<KioskOwnerCap>,
     ): KioskOwnerCap {
-        action.action_mut().borrow.borrow(multisig, multisig_cap)
+        let auth = action.issue_auth();
+        action.action_mut().borrow.borrow(multisig, multisig_cap, auth)
     }
 
     // step 5: list last nft in action
@@ -235,23 +199,23 @@ module kraken::kiosk {
         nfts.destroy_empty();
     }
 
-    // members can delist nfts
-    public fun delist<T: key + store>(
-        multisig: &mut Multisig, 
-        kiosk: &mut Kiosk, 
-        cap: Receiving<KioskOwnerCap>,
-        nft: ID,
-        ctx: &mut TxContext
-    ) {
-        multisig.assert_is_member(ctx);
-        // access the multisig's KioskOwnerCap and use it to delist the nft
-        let ms_cap_id = cap.receiving_object_id();
-        let mut borrow = owned::new_borrow(vector[ms_cap_id]);
-        let cap = borrow.borrow(multisig, cap);
-        kiosk.delist<T>(&cap, nft);
-        borrow.put_back(multisig, cap);
-        borrow.complete_borrow();
-    }
+    // // members can delist nfts
+    // public fun delist<T: key + store>(
+    //     multisig: &mut Multisig, 
+    //     kiosk: &mut Kiosk, 
+    //     cap: Receiving<KioskOwnerCap>,
+    //     nft: ID,
+    //     ctx: &mut TxContext
+    // ) {
+    //     multisig.assert_is_member(ctx);
+    //     // access the multisig's KioskOwnerCap and use it to delist the nft
+    //     let ms_cap_id = cap.receiving_object_id();
+    //     let mut borrow = owned::new_borrow(vector[ms_cap_id]);
+    //     let cap = borrow.borrow(multisig, cap, action.issuer());
+    //     kiosk.delist<T>(&cap, nft);
+    //     borrow.put_back(multisig, cap);
+    //     borrow.complete_borrow();
+    // }
 
     // members can withdraw the profits to the multisig
     public fun withdraw_profits(

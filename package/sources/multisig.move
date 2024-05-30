@@ -16,6 +16,7 @@ module kraken::multisig {
     const EThresholdNotReached: u64 = 1;
     const EProposalNotEmpty: u64 = 2;
     const ECantBeExecutedYet: u64 = 3;
+    const EAuthNotValid: u64 = 4;
 
     // === Structs ===
 
@@ -50,10 +51,19 @@ module kraken::multisig {
     // hot potato ensuring the action is executed as it can't be stored
     public struct Action<T: store> {
         inner: T,
+        // multisig that approved the action
+        multisig: ID,
     }
 
     // key for the inner action struct of a proposal
     public struct ActionKey has copy, drop, store {}
+
+    // an auth token that can be constructed only from an Action
+    // used to verify that the action has been approved by this multisig
+    public struct Auth has drop {
+        // id of the multisig issuing the auth
+        multisig: ID,
+    }
 
     // === Public mutative functions ===
 
@@ -96,7 +106,7 @@ module kraken::multisig {
     // === Multisig-only functions ===
 
     // create a new proposal for an action
-    // that must be constructed in another module
+    // that must be constructed in any other module
     public fun create_proposal<T: store>(
         multisig: &mut Multisig, 
         action: T,
@@ -190,10 +200,30 @@ module kraken::multisig {
         let inner = df::remove(&mut id, ActionKey {});
         id.delete();
 
-        Action { inner }
+        Action { inner, multisig: multisig.id.uid_to_inner() }
+    }
+
+    // creates a Witness from an Action
+    public fun issue_auth<A: store>(action: &Action<A>): Auth {
+        Auth { multisig: action.multisig }
+    }
+
+    // called to access and execute the action
+    public fun action_mut<T: store>(action: &mut Action<T>): &mut T {
+        &mut action.inner
+    }
+
+    // should be called after the action has been executed 
+    public fun unpack_action<T: store>(action: Action<T>): T {
+        let Action { inner, multisig: _ } = action;
+        inner
     }
 
     // === View functions ===
+
+    public fun id(multisig: &Multisig): ID {
+        multisig.id.uid_to_inner()
+    }
 
     public fun name(multisig: &Multisig): String {
         multisig.name
@@ -235,18 +265,15 @@ module kraken::multisig {
         proposal.approved.into_keys()
     }
 
+    public fun assert_is_member(multisig: &Multisig, ctx: &TxContext) {
+        assert!(multisig.members.contains(&ctx.sender()), ECallerIsNotMember);
+    }
+
+    public fun authentify(multisig: &Multisig, auth: Auth) {
+        assert!(multisig.id.uid_to_inner() == auth.multisig, EAuthNotValid);
+    }
+
     // === Package functions ===
-
-    // called to access and execute the action
-    public(package) fun action_mut<T: store>(action: &mut Action<T>): &mut T {
-        &mut action.inner
-    }
-
-    // should be called after the action has been executed 
-    public(package) fun unpack_action<T: store>(action: Action<T>): T {
-        let Action { inner } = action;
-        inner
-    }
 
     // callable only in management.move, if the proposal has been accepted
     public(package) fun set_name(multisig: &mut Multisig, name: String) {
@@ -276,10 +303,6 @@ module kraken::multisig {
 
     public(package) fun uid_mut(multisig: &mut Multisig): &mut UID {
         &mut multisig.id
-    }
-
-    public(package) fun assert_is_member(multisig: &Multisig, ctx: &TxContext) {
-        assert!(multisig.members.contains(&ctx.sender()), ECallerIsNotMember);
     }
 
     // === Test functions ===
